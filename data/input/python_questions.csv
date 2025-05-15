@@ -1,0 +1,128 @@
+issue,code,topic,error
+How do I write a function to calculate the Fibonacci sequence?,,solution construction,
+Why am I getting a 'multiple statements on one line' error?,if x > 5: print('Greater') print('Done'),syntax error,SyntaxError
+How can I generate a random list of numbers?,,solution construction,
+Why am I getting a syntax error when using 'try'?,"try
+  print(1/0)",syntax error,SyntaxError
+Why does my code only print the last value?,"for i in range(3):
+  result = i
+print(result)",logical error,
+Why is my counter variable not updating?,"count = 0
+for i in range(5):
+  count + 1",logical error,
+Why does Python say 'invalid character in identifier'?,π = 3.14,syntax error,SyntaxError
+What is the purpose of using 'self' in a class method?,,conceptual error,
+What does 'OSError' mean in Python?,"import os
+os.remove('protected_file.txt')",error interpretation,OSError
+Why is my variable declaration causing a syntax error?,x = 10 x = 20,syntax error,SyntaxError
+Why is my counter variable not incrementing?,"x = 0
+while x > 5:
+  x = x + 1
+  print(x)
+print(x)",logical error,
+How does Python handle memory management?,,conceptual error,
+How can I create a function to check for prime numbers?,,solution construction,
+When should I use 'try' and 'except'?,,conceptual error,
+Why am I getting 'NameError: name 'x' is not defined'?,print(x),error interpretation,NameError: name 'x' is not defined
+What is the purpose of the 'pass' statement?,,conceptual error,
+How do I create a function that calculates factorials?,,solution construction,
+What is the difference between a list and a tuple?,,conceptual error,
+Why is my loop not stopping when the condition is met?,"x = 0
+while x < 10:
+  x -= 1",logical error,
+Why is my 'with' statement causing a syntax error?,"with open('file.txt', 'r' as file",syntax error,SyntaxError
+Why is my boolean expression always True?,"if 10:
+  print('Equal')",logical error,
+When should I use 'return' vs 'yield' in functions?,,conceptual error,
+How can I write a function to generate the first n prime numbers?,,solution construction,
+Why is my input function not receiving input?,"name = input('Enter name: ')
+print('Hello, ')",logical error,
+What does 'FileNotFoundError' mean?,"with open('non_existent_file.txt', 'r') as file:
+  content = file.read()",error interpretation,FileNotFoundError
+Why is my lambda function causing a syntax error?,my_func = lambda x: x*2),syntax error,SyntaxError
+How can I sort a list of dictionaries by a specific key?,,solution construction,
+Why is my tuple declaration causing a syntax error?,"my_tuple = (1, 2, 3,)",syntax error,SyntaxError
+Why is my 'else' statement causing a syntax error?,"if x > 10
+  print('Greater')",syntax error,SyntaxError
+What is the purpose of using 'assert' in Python?,,conceptual error,
+Why is my for loop not iterating over the list?,"for i in range(len(my_list)):
+  print(i)",logical error,
+Why do I get 'MemoryError' when creating a large list?,big_list = [0] * 10**10,error interpretation,MemoryError
+What does 'SyntaxError: invalid syntax' mean in this context?,print 'Hello World',syntax error,SyntaxError
+Should I use a 'while' loop or a 'for' loop for counting?,,conceptual error,
+Why is my function not returning a list?,"def create_list():
+  my_list = [1, 2, 3]
+print(create_list())",logical error,
+Why does Python say 'unexpected indent'?,"def greet():
+  print('Hello')
+    print('World')",syntax error,SyntaxError
+How can I write a function to count vowels in a string?,,solution construction,
+What does 'PermissionError' mean when accessing a file?,"with open('/system/file.txt', 'w') as file:
+  file.write('Hello')",error interpretation,PermissionError
+Create a function that takes a string and prints each word in reverse order while maintaining the original order of words.,,solution construction,
+What is the purpose of the 'finally' block in exception handling?,,conceptual error,
+Why is my function returning the wrong type?,"def multiply(a, b):
+  return str(a * b)",logical error,
+Why is 'None' considered a special value in Python?,,conceptual error,
+How do I create a function to convert a string to title case?,,solution construction,
+Why is my function returning 'None'?,"def print_message(msg):
+  print(msg)
+result = print_message('Hello')",logical error,
+How do I write a function to check for palindrome strings?,,solution construction,
+Why is my function returning 'None' even though it has a return statement?,"def add(a, b):
+  return
+  a + b",error interpretation,
+How do I write a function to flatten a nested list?,,solution construction,
+Why is my list is not being modified?,"my_list = [1, 2, 3]
+for i in my_list:
+  i += 1",logical error,
+What does 'IndentationError: unindent does not match any outer indentation level' mean?,"def func():
+  print('Hello')
+    print('World')",error interpretation,IndentationError
+Why is my string concatenation not working?,result = 'Hello' + 5,logical error,TypeError: can only concatenate str (not 'int') to str
+What does 'IndentationError: expected an indented block' mean?,"def my_function():
+print('Hello')",syntax error,SyntaxError
+How can I count the occurrences of each element in a list?,,solution construction,
+How can I implement binary search in Python?,,solution construction,
+Why is my sum function returning a string instead of an integer?,"def sum_values(a, b):
+  return str(a + b)",logical error,
+Why do I see 'ValueError: could not convert string to float'?,x = float('Hello'),error interpretation,ValueError: could not convert string to float
+How do I implement a simple calculator using functions?,,solution construction,
+What is the purpose of using 'lambda' functions?,"double = lambda x: x * 2
+print(double(5))",conceptual error,
+Why am I getting a 'colon expected' error?,"if x > 10
+  print('Greater')",syntax error,SyntaxError
+Why am I getting a 'return outside function' error?,return 'Hello',syntax error,SyntaxError
+Why do I get 'SyntaxError' when not using a colon?,"if x > 5
+  print('Greater')",error interpretation,SyntaxError: invalid syntax
+Why is my dictionary key not being found?,"my_dict = {'a': 1, 'b': 2}
+print(my_dict['c'])",logical error,
+Why is my variable scope is not affecting the output?,"x = 5
+def change_x():
+  x = 10
+change_x()
+print(x)",logical error,
+Why am I getting 'TypeError: can only concatenate str (not 'int') to str'?,result = 'Hello' + 5,error interpretation,TypeError: can only concatenate str (not 'int') to str
+"Write a function that iterates through a list of numbers and prints only the odd numbers, one per line.",,solution construction,
+How do I write a function to generate a multiplication table?,,solution construction,
+What does 'TypeError: unsupported operand type(s) for +: 'int' and 'str'' mean?,x = 5 + 'Hello',error interpretation,TypeError: unsupported operand type(s) for +: 'int' and 'str'
+What does 'UnboundLocalError' mean in Python?,"def update():
+  x += 1
+update()",error interpretation,UnboundLocalError: local variable 'x' referenced before assignment
+Why should I avoid using mutable default arguments?,"def add_item(item, my_list=[]):
+  my_list.append(item)
+  return my_list",conceptual error,
+What is the difference between 'is' and '=='?,,conceptual error,
+Why am I getting 'OverflowError' when performing a calculation?,result = 2.0 ** 10000,error interpretation,OverflowError
+When should I use 'break' vs 'continue' in loops?,,conceptual error,
+Why is my set declaration causing a syntax error?,"my_set = {1, 2, 3, }",syntax error,SyntaxError
+How can I implement a stack using a list?,,solution construction,
+How do I implement a function to count words in a string?,,solution construction,
+Why am I getting 'ZeroDivisionError' when dividing?,result = 10 / 0,error interpretation,ZeroDivisionError
+Why is my function modifying the original list?,"def append_item(lst):
+  lst.append(4)
+  return lst",logical error,
+Why should I use a list comprehension?,,conceptual error,
+What is the difference between '==' and '=' in Python?,,conceptual error,
+What is the best way to find the maximum value in a list without using max()?,,solution construction,
+How can I sum all even numbers in a list?,,solution construction,
