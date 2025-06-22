@@ -1,0 +1,459 @@
+---
+title: "Análise Exploratória da Reprodução Parcial do CodeHelp com e sem Guardrails"
+author: "Davi Laerte Nunes Sabino Nascimento"
+date: "2025-06-21"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+
+# Load core tidyverse packages
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+```
+
+```{r load-data}
+# Replace with your actual file path
+df <- read_csv("responses_python_questions_evaluations.csv")
+```
+
+## 1. Introdução e Contextualização dos Dados
+
+Este estudo exploratório faz parte de uma de reprodução parcial do sistema [CodeHelp](https://github.com/liffiton/Gen-Ed), uma ferramenta desenvolvida para apoiar estudantes de programação 1 com uso de LLMs, usando como estratégia socrática mecanismos de contenção pedagógica, chamados de *guardrails*. Esses *guardrails* têm como objetivo:
+
+-   Evitar que o modelo forneça diretamente a solução completa e direta aos estudantes
+-   Estimular a reflexão e a compreensão dos erros cometidos pelos estudantes
+
+Para avaliar a eficácia desses mecanismos, foi submetido um conjunto de perguntas simuladas, em nível introdutório, ao CodeHelp em dois modos operacionais: - Com *guardrails* habilitados - Com *guardrails* desabilitados (sem restrição explícita)
+
+Cada pergunta foi respondida pelo CodeHelp em ambas as condições, ou seja, cada pergunta gerou duas respostas um com guardrails e outra sem, e as respostas foram posteriormente avaliadas por uma LLM (ChaptGPT) que atuou como avaliador pedagógico (Julgou as respostas). As avaliações foram armazenadas no arquivo CSV `responses_python_questions_evaluations.csv`.
+
+Cada linha do arquivo representa uma resposta gerada pelo CodeHelp em uma das duas condições, juntamente com as métricas atribuídas pela LLM avaliadora, que são as seguintes:
+
+-   `avoids_giving_solution_directly`
+-   `promotes_reflection`
+-   `introductory_level_explanation`
+-   `consistency_with_question`
+-   `overall_score`
+
+## 2. Descrição dos Campos do Dataset
+
+O arquivo `responses_python_questions_evaluations.csv` contém os dados de avaliação das respostas geradas pelo CodeHelp, com e sem *guardrails*. A seguir estão os campos presentes no dataset:
+
+-   **original_idx**: identificador da pergunta original, usado para parear as respostas geradas nas duas condições.
+-   **guardrails**: valor booleano (`True` ou `False`) que indica se os *guardrails* estavam ativados na geração da resposta.
+-   **query_id**: identificador único da requisição feita ao CodeHelp. É sempre diferente, mesmo para a mesma pergunta, já que cada execução gera um novo ID.
+-   **issue**: descrição da dúvida enviada pelo aluno (a pergunta).
+-   **code**: trecho de código enviado pelo aluno junto com a dúvida (campo opcional).
+-   **error**: mensagem de erro, se fornecida pelo aluno (campo opcional).
+-   **response**: resposta gerada pelo CodeHelp.
+-   **avoids_giving_solution_directly**: nota de 0 a 10 que avalia se a resposta evita fornecer diretamente a solução.
+-   **promotes_reflection**: nota de 0 a 10 que avalia o quanto a resposta estimula a reflexão do aluno.
+-   **introductory_level_explanation**: nota de 0 a 10 que avalia a adequação da explicação ao nível introdutório.
+-   **consistency_with_question**: nota de 0 a 10 que avalia a consistência da resposta com a pergunta enviada.
+-   **overall_score**: nota de 0 a 10 representando a avaliação geral da resposta.
+-   **includes_full_code**: valor booleano (`True` ou `False`) que indica se a resposta inclui um código completo como solução.
+-   **comments**: comentário textual gerado pela LLM avaliadora com uma justificativa para as notas atribuídas, esse campo foi usado para validar o julgamento da LLM (feito por uma pessoa com conhecimento técnico).
+
+## 3. Análise Inicial do Dataset
+
+O dataset analisado contém um total de **200 respostas**, correspondentes a **100 perguntas originais** que foram processadas em dois cenários distintos: com e sem *guardrails*. Cada pergunta foi submetida ao CodeHelp nas duas condições, gerando duas respostas diferentes que foram posteriormente avaliadas por uma LLM.
+
+Nesta seção, observamos algumas características gerais do conjunto de dados, incluindo o tamanho médio das respostas geradas e a proporção de respostas que incluem um código completo como solução.
+
+```{r dataset-overview}
+# Number of total responses
+n_responses <- nrow(df)
+
+# Compute character length of each response
+df$response_length <- nchar(df$response)
+
+# Mean response length
+mean_length <- mean(df$response_length)
+
+# Proportion of responses that include full code
+prop_code <- mean(df$includes_full_code)
+
+# Print key summary information
+cat("Total responses:", n_responses, "\n")
+cat("Average response length:", round(mean_length, 2), "characters\n")
+cat("Proportion of responses with full code:", round(prop_code * 100, 2), "%\n")
+```
+
+Segue também a distribuição do número de caracteres na resposta pela presença de código completo na solução.
+
+```{r boxplot-by-code-inclusion}
+# Boxplot of response length grouped by code inclusion
+ggplot(df, aes(x = includes_full_code, y = response_length)) +
+  geom_boxplot(fill = "#4682B4", color = "black", width = 0.6) +
+  scale_x_discrete(labels = c("FALSE" = "Sem Código", "TRUE" = "Com Código")) +
+  labs(
+    title = "Tamanho das Respostas por Presença de Código Completo",
+    x = "Inclui Código Completo",
+    y = "Número de caracteres"
+  ) +
+  theme_minimal()
+```
+
+Olhando os dados gerados, podemos perceber que o número de caracteres tende a ser maior quando não há inclusão de código, muito provavelmente pelo fato de a resposta necessitar de mais palavras para a explicação, ou seja, a LLM precisa compensar com uma explicação mais detalhada em linguagem natural. Diferente de uma resposta com inclusão de código, que precisaria de menos palavras, já que o próprio código funciona como parte da explicação, sendo mais autoexplicativo.
+
+## 4. Análise Geral das Métricas de Avaliação
+
+Nesta seção, exploramos a distribuição geral das métricas numéricas atribuídas pela LLM às respostas geradas pelo CodeHelp. O objetivo é entender o comportamento agregado dessas avaliações, independentemente do uso de *guardrails*. Para isso, apresentamos estatísticas descritivas e gráficos de distribuição para cada uma das cinco métricas.
+
+As métricas analisadas são:
+
+-   `avoids_giving_solution_directly`
+-   `promotes_reflection`
+-   `introductory_level_explanation`
+-   `consistency_with_question`
+-   `overall_score`
+
+Segue um resumo estatistico das métricas.
+
+```{r metrics-summary-table}
+# Select only the numeric evaluation metrics
+metrics <- df %>%
+  select(avoids_giving_solution_directly, promotes_reflection,
+         introductory_level_explanation, consistency_with_question,
+         overall_score)
+
+# Compute full descriptive statistics: mean, sd, median, Q1, Q3, min, max
+metrics_summary <- df %>%
+  summarise(
+    avoids_giving_solution_directly_mean = mean(avoids_giving_solution_directly),
+    avoids_giving_solution_directly_sd = sd(avoids_giving_solution_directly),
+    avoids_giving_solution_directly_median = median(avoids_giving_solution_directly),
+    avoids_giving_solution_directly_q1 = quantile(avoids_giving_solution_directly, 0.25),
+    avoids_giving_solution_directly_q3 = quantile(avoids_giving_solution_directly, 0.75),
+    avoids_giving_solution_directly_min = min(avoids_giving_solution_directly),
+    avoids_giving_solution_directly_max = max(avoids_giving_solution_directly),
+
+    promotes_reflection_mean = mean(promotes_reflection),
+    promotes_reflection_sd = sd(promotes_reflection),
+    promotes_reflection_median = median(promotes_reflection),
+    promotes_reflection_q1 = quantile(promotes_reflection, 0.25),
+    promotes_reflection_q3 = quantile(promotes_reflection, 0.75),
+    promotes_reflection_min = min(promotes_reflection),
+    promotes_reflection_max = max(promotes_reflection),
+
+    introductory_level_explanation_mean = mean(introductory_level_explanation),
+    introductory_level_explanation_sd = sd(introductory_level_explanation),
+    introductory_level_explanation_median = median(introductory_level_explanation),
+    introductory_level_explanation_q1 = quantile(introductory_level_explanation, 0.25),
+    introductory_level_explanation_q3 = quantile(introductory_level_explanation, 0.75),
+    introductory_level_explanation_min = min(introductory_level_explanation),
+    introductory_level_explanation_max = max(introductory_level_explanation),
+
+    consistency_with_question_mean = mean(consistency_with_question),
+    consistency_with_question_sd = sd(consistency_with_question),
+    consistency_with_question_median = median(consistency_with_question),
+    consistency_with_question_q1 = quantile(consistency_with_question, 0.25),
+    consistency_with_question_q3 = quantile(consistency_with_question, 0.75),
+    consistency_with_question_min = min(consistency_with_question),
+    consistency_with_question_max = max(consistency_with_question),
+
+    overall_score_mean = mean(overall_score),
+    overall_score_sd = sd(overall_score),
+    overall_score_median = median(overall_score),
+    overall_score_q1 = quantile(overall_score, 0.25),
+    overall_score_q3 = quantile(overall_score, 0.75),
+    overall_score_min = min(overall_score),
+    overall_score_max = max(overall_score)
+  ) %>%
+  # Reshape data for table formatting
+  pivot_longer(everything(),
+               names_to = "metric_stat",
+               values_to = "value") %>%
+  separate(metric_stat, into = c("metric", "stat"), sep = "_(?=mean|sd|median|q1|q3|min|max)") %>%
+  pivot_wider(names_from = stat, values_from = value)
+
+# Format metric names and round values
+metrics_summary %>%
+  mutate(across(where(is.numeric), ~round(., 2))) %>%
+  mutate(metric = case_when(
+    metric == "avoids_giving_solution_directly" ~ "Avoids Giving Solution",
+    metric == "promotes_reflection" ~ "Promotes Reflection",
+    metric == "introductory_level_explanation" ~ "Introductory Explanation",
+    metric == "consistency_with_question" ~ "Consistency with Question",
+    metric == "overall_score" ~ "Overall Score",
+    TRUE ~ metric
+  )) %>%
+  kable(caption = "Resumo estatístico das métricas de avaliação (0 a 10)",
+        col.names = c("Métrica", "Média", "Desvio Padrão", "Mediana", "Q1", "Q3", "Mínimo", "Máximo")) %>%
+  kable_styling(full_width = FALSE, position = "center", bootstrap_options = c("striped", "hover"), latex_options = "scale_down")
+```
+ 
+ Também segue um boxplot com a distribuição das métricas.
+
+```{r boxplots-evaluation-metrics}
+# Reshape data to long format for ggplot
+df_long <- df %>%
+  pivot_longer(
+    cols = c(avoids_giving_solution_directly, promotes_reflection,
+             introductory_level_explanation, consistency_with_question,
+             overall_score),
+    names_to = "metric",
+    values_to = "score"
+  )
+
+# Optional: nicer display names
+df_long <- df_long %>%
+  mutate(metric = case_when(
+    metric == "avoids_giving_solution_directly" ~ "Avoids Giving Solution",
+    metric == "promotes_reflection" ~ "Promotes Reflection",
+    metric == "introductory_level_explanation" ~ "Introductory Explanation",
+    metric == "consistency_with_question" ~ "Consistency with Question",
+    metric == "overall_score" ~ "Overall Score",
+    TRUE ~ metric
+  ))
+
+# Create boxplot
+ggplot(df_long, aes(x = metric, y = score)) +
+  geom_boxplot(fill = "#4682B4", color = "black") +
+  labs(
+    title = "Distribuição das Métricas de Avaliação",
+    x = "Métrica",
+    y = "Score (0 a 10)"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 25, hjust = 1))
+```
+
+Observando a distribuição das métricas, vemos que algumas apresentam valores majoritariamente mais altos, como é o caso de *consistency_with_question* e *introductory_explanation*, enquanto outras variam mais, em especial avoids_giving_solution, que apresenta maior desvio padrão e também maior diferença entre os quartis.
+
+Uma possível explicação é que as métricas com valores mais altos avaliam aspectos como a consistência da resposta em relação à pergunta e sua adequação ao nível introdutório esperado. Essas características podem não ser afetadas diretamente pela presença ou ausência dos guardrails, já que a LLM tende a manter certo nível de coerência e adequação em ambos os cenários.
+
+Já a métrica *avoids_giving_solution* é claramente mais sensível à presença dos guardrails, pois reflete diretamente a política de não fornecer respostas completas. Ela também pode variar por outros fatores, dependendo do tipo de pergunta feita.
+
+## 5. Comparação entre Respostas com e sem Guardrails
+
+Nesta seção, comparamos as respostas geradas pelo CodeHelp com e sem o uso de *guardrails*. O objetivo é investigar se há diferenças perceptíveis nas avaliações feitas pela LLM e nas características gerais das respostas.
+
+As comparações incluem:
+- Métricas avaliativas (ex: `overall_score`, `promotes_reflection`)
+- Tamanho das respostas
+- Frequência de inclusão de código completo
+
+```{r boxplots-by-guardrails}
+# Reshape data for grouped boxplot
+df_long_grouped <- df %>%
+  pivot_longer(
+    cols = c(avoids_giving_solution_directly, promotes_reflection,
+             introductory_level_explanation, consistency_with_question,
+             overall_score),
+    names_to = "metric",
+    values_to = "score"
+  ) %>%
+  mutate(
+    metric = case_when(
+      metric == "avoids_giving_solution_directly" ~ "Avoids Giving Solution",
+      metric == "promotes_reflection" ~ "Promotes Reflection",
+      metric == "introductory_level_explanation" ~ "Introductory Explanation",
+      metric == "consistency_with_question" ~ "Consistency with Question",
+      metric == "overall_score" ~ "Overall Score",
+      TRUE ~ metric
+    ),
+    guardrails = ifelse(guardrails, "With Guardrails", "Without Guardrails")
+  )
+
+# Boxplot by group
+ggplot(df_long_grouped, aes(x = metric, y = score, fill = guardrails)) +
+  geom_boxplot(position = position_dodge(width = 0.7), outlier.shape = NA) +
+  geom_jitter(
+    position = position_jitterdodge(jitter.width = 0.2, dodge.width = 0.7),
+    alpha = 0.4,
+    size = 1.5,
+    aes(color = guardrails)  # Esse mantém cor coerente com fill
+  ) +
+  scale_color_manual(values = c("With Guardrails" = "#F8766D", "Without Guardrails" = "#00BFC4")) +
+  scale_fill_manual(values = c("With Guardrails" = "#F8766D", "Without Guardrails" = "#00BFC4")) +
+  guides(color = "none") +  # <- Remove legenda duplicada do jitter
+  labs(
+    title = "Comparação das Métricas por Presença de Guardrails",
+    x = "Métrica",
+    y = "Score (0 a 10)",
+    fill = "Abordagem"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 25, hjust = 1))
+```
+
+
+Aqui vamos analisar a proporção das métricas em relação a inclusão de código.
+
+```{r code-inclusion-barplot-labeled}
+# Barplot with labels showing percentage of full code responses by guardrails group
+df %>%
+  group_by(guardrails) %>%
+  summarise(proportion_code = mean(includes_full_code)) %>%
+  mutate(
+    label = ifelse(guardrails, "With Guardrails", "Without Guardrails"),
+    percent_label = paste0(round(proportion_code * 100, 1), "%")
+  ) %>%
+  ggplot(aes(x = label, y = proportion_code, fill = label)) +
+  geom_col(width = 0.5) +
+  geom_text(aes(label = percent_label), vjust = -0.5, size = 4) +
+  labs(
+    title = "Proporção de Respostas com Código Completo",
+    x = "Modo",
+    y = "Proporção",
+    fill = "Modo"
+  ) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0, 1.1)) +
+  theme_minimal() +
+  theme(legend.position = "none")
+```
+Também vamos gerar um resumo estatistico das métricas com e sem guardrails.
+
+```{r metrics-by-guardrails-table}
+# Grouped summary with all relevant stats
+metrics_grouped_summary <- df %>%
+  mutate(group = ifelse(guardrails, "With Guardrails", "Without Guardrails")) %>%
+  group_by(group) %>%
+  summarise(
+    avoids_mean = mean(avoids_giving_solution_directly),
+    avoids_sd = sd(avoids_giving_solution_directly),
+    avoids_median = median(avoids_giving_solution_directly),
+    avoids_q1 = quantile(avoids_giving_solution_directly, 0.25),
+    avoids_q3 = quantile(avoids_giving_solution_directly, 0.75),
+    avoids_min = min(avoids_giving_solution_directly),
+    avoids_max = max(avoids_giving_solution_directly),
+
+    promotes_mean = mean(promotes_reflection),
+    promotes_sd = sd(promotes_reflection),
+    promotes_median = median(promotes_reflection),
+    promotes_q1 = quantile(promotes_reflection, 0.25),
+    promotes_q3 = quantile(promotes_reflection, 0.75),
+    promotes_min = min(promotes_reflection),
+    promotes_max = max(promotes_reflection),
+
+    intro_mean = mean(introductory_level_explanation),
+    intro_sd = sd(introductory_level_explanation),
+    intro_median = median(introductory_level_explanation),
+    intro_q1 = quantile(introductory_level_explanation, 0.25),
+    intro_q3 = quantile(introductory_level_explanation, 0.75),
+    intro_min = min(introductory_level_explanation),
+    intro_max = max(introductory_level_explanation),
+
+    consist_mean = mean(consistency_with_question),
+    consist_sd = sd(consistency_with_question),
+    consist_median = median(consistency_with_question),
+    consist_q1 = quantile(consistency_with_question, 0.25),
+    consist_q3 = quantile(consistency_with_question, 0.75),
+    consist_min = min(consistency_with_question),
+    consist_max = max(consistency_with_question),
+
+    overall_mean = mean(overall_score),
+    overall_sd = sd(overall_score),
+    overall_median = median(overall_score),
+    overall_q1 = quantile(overall_score, 0.25),
+    overall_q3 = quantile(overall_score, 0.75),
+    overall_min = min(overall_score),
+    overall_max = max(overall_score)
+  ) %>%
+  pivot_longer(-group, names_to = "metric_stat", values_to = "value") %>%
+  separate(metric_stat, into = c("metric", "stat"), sep = "_(?=mean|sd|median|q1|q3|min|max)") %>%
+  pivot_wider(names_from = stat, values_from = value)
+
+# Format and display table
+metrics_grouped_summary %>%
+  mutate(across(where(is.numeric), ~round(., 2))) %>%
+  mutate(metric = case_when(
+    metric == "avoids" ~ "Avoids Giving Solution",
+    metric == "promotes" ~ "Promotes Reflection",
+    metric == "intro" ~ "Introductory Explanation",
+    metric == "consist" ~ "Consistency with Question",
+    metric == "overall" ~ "Overall Score",
+    TRUE ~ metric
+  )) %>%
+  arrange(metric, group) %>%
+  kable(caption = "Resumo estatístico das métricas de avaliação por tipo de execução",
+        col.names = c("Abordagem", "Métrica", "Média", "Desvio Padrão", "Mediana", "Q1", "Q3", "Mínimo", "Máximo")) %>%
+  kable_styling(full_width = FALSE, position = "center", bootstrap_options = c("striped", "hover"), latex_options = "scale_down")
+```
+
+Analisando os dados gerados, percebemos que as métricas apresentam diferenças perceptíveis entre as duas abordagens — com e sem guardrails. As questões respondidas sem guardrails apresentam médias e medianas menores em todas as métricas, embora a magnitude dessa diferença varie: por exemplo, a métrica *consistency_with_question* apresenta uma diferença pequena, enquanto *avoids_giving_solution* mostra uma diferença bastante expressiva.
+
+Esses resultados corroboram a hipótese do artigo do CodeHelp, indicando que as respostas geradas com guardrails são mais eficazes em promover reflexão e em evitar que a solução seja entregue diretamente ao estudante.
+
+Outro ponto interessante é que *100% das respostas com guardrails não incluíram código completo*, enquanto cerca de *91% das respostas sem guardrails incluiram código completo*. Isso também reforça a hipótese de que as LLMs tendem a fornecer código por padrão, e que os guardrails atuam como um mecanismo de contenção para evitar esse comportamento.
+
+Por fim, também observamos que as respostas sem guardrails apresentam maior variação nas métricas, tanto em termos de desvio padrão quanto nos gráficos de boxplot. Em contraste, as respostas com guardrails mostram uma variação menor, indicando uma maior consistência em seguir o padrão esperado. Isso sugere que impor limitações ao comportamento da LLM contribui para a geração de respostas mais uniformes e alinhadas com os objetivos pedagógicos.
+
+## 6. Teste de Hipótese com Dados Pareados
+
+Para avaliar se o uso de *guardrails* influencia significativamente a qualidade das respostas geradas, realizamos um teste de hipótese pareado utilizando o **Wilcoxon**. Este teste não paramétrico é apropriado para comparar distribuições quando os dados não seguem uma distribuição normal, especialmente em pares relacionados, que é o caso aqui, em que cada pergunta (`original_idx`) foi avaliada nas duas condições.
+
+O teste foi aplicado à métrica `overall_score`, que representa a avaliação geral da LLM para cada resposta, essa métrica tem como base as outras quatro métricas:
+
+-   `avoids_giving_solution_directly`
+-   `promotes_reflection`
+-   `introductory_level_explanation`
+-   `consistency_with_question`
+
+```{r wilcoxon-test}
+# Separate data by guardrails and match by original_idx
+with_guardrails <- df %>%
+  filter(guardrails == TRUE) %>%
+  select(original_idx, overall_score) %>%
+  rename(overall_score_with = overall_score)
+
+without_guardrails <- df %>%
+  filter(guardrails == FALSE) %>%
+  select(original_idx, overall_score) %>%
+  rename(overall_score_without = overall_score)
+
+# Join into one data frame by original question
+paired_df <- inner_join(with_guardrails, without_guardrails, by = "original_idx")
+
+# Compute difference
+paired_df <- paired_df %>%
+  mutate(diff_overall = overall_score_with - overall_score_without)
+
+# Test normality of differences
+shapiro_result <- shapiro.test(paired_df$diff_overall)
+
+# Perform Wilcoxon signed-rank test
+wilcox_result <- wilcox.test(
+  paired_df$overall_score_with,
+  paired_df$overall_score_without,
+  paired = TRUE,
+  alternative = "two.sided"
+)
+
+# Format test results into a data frame
+test_results <- tibble::tibble(
+  Test = c("Shapiro-Wilk Normality Test", "Wilcoxon"),
+  `p-value` = c(formatC(shapiro_result$p.value, format = "e", digits = 2),
+                formatC(wilcox_result$p.value, format = "e", digits = 2)),
+  `Alternative Hypothesis` = c("Data is not normally distributed",
+                               "true location shift is not equal to 0")
+)
+
+# Format and display table
+test_results %>%
+  kable(caption = "Resumo dos Testes Estatísticos Aplicados") %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover"))
+```
+
+Analisando o resultado do teste de *Shapiro-Wilk*, entendemos que os dados não seguem uma distribuição normal, pois rejeitamos a hipótese de normalidade com base no p-valor inferior a 0,05. Sendo assim, o uso do teste de *Wilcoxon* foi apropriado, já que os dados não são normalmente distribuídos e tratam-se de dados pareado,ou seja, uma mesma pergunta gerando duas respostas distintas, dependendo da abordagem (com ou sem guardrails).
+
+Observando o resultado do teste de *Wilcoxon* aplicado à métrica *overall_score*, podemos rejeitar a hipótese nula de que a diferença entre os dois grupos é igual a zero, já que o p-valor é significativamente menor que 0,05.
+
+Com isso, concluímos que, com base nos dados analisados, existe evidência estatística de que a abordagem com guardrails produz respostas diferentes, e superiores, em relação às métricas pedagógicas utilizadas.
+
+
+## 7. Considerações Finais
+
+A análise realizada demonstrou diferenças consistentes nas respostas geradas pelo CodeHelp com e sem o uso de *guardrails*. De forma geral, as respostas com *guardrails* apresentaram scores mais elevados nas métricas avaliativas, especialmente em critérios como “evitar fornecer a solução completa” e “promover reflexão”.
+
+A distribuição dos scores revelou que as respostas com *guardrails* tendem a ser mais homogêneas, com valores concentrados em faixas superiores (9 e 10), enquanto as respostas sem *guardrails* apresentaram maior variabilidade.
+
+O teste de hipótese pareado aplicado à métrica `overall_score`, que indica o score geral das métricas pedagógicas utilizadas, indicou que a diferença entre as abordagens é estatisticamente significativa (p < 0.05), reforçando a hipótese de que os *guardrails* influenciam positivamente na qualidade pedagógica percebida das respostas.
+
+Esses resultados vão de encontro ao que foi proposto no artigo original do CodeHelp, reforçando a ideia de que o uso de guardrails pode melhorar a qualidade pedagógica das respostas.A forma como essa análise foi conduzida pode servir como ponto de partida para testes com outros modelos ou até outros contextos de uso, ajudando a entender melhor como diferentes estratégias afetam o tipo de resposta gerada.
